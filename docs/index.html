@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rate Optimization in Distributed RIS Aided MIMO System Using Soft Actor-Critic Method of DRL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,650;12..96,750&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#EDF0F3; --surface:#FFFFFF; --ink:#121925; --ink-2:#3B4555; --muted:#667183; --rule:#D5DBE3;
+  --accent:#3438C9; --accent-soft:#E3E4FA; --accent-ink:#FFFFFF;
+  --power:#9A5B00; --power-soft:#F8EBD3;
+  --ok:#1D7A55; --ok-soft:#DDF1E7;
+  --bad:#B23A3A; --bad-soft:#FAE3E1;
+  --canvas-bg:#F7F9FB; --canvas-grid:#E2E7ED;
+  --eval:#1D7A9C; --eval-soft:#DFF0F6;
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0C1017; --surface:#141A24; --ink:#E7EBF1; --ink-2:#BCC4D0; --muted:#8C96A6; --rule:#263041;
+    --accent:#9A9DFF; --accent-soft:#23264A; --accent-ink:#121925;
+    --power:#F0B865; --power-soft:#352812;
+    --ok:#6FD3A6; --ok-soft:#13302A; --bad:#E8847A; --bad-soft:#3A1E1C;
+    --canvas-bg:#10151E; --canvas-grid:#1C2432;
+    --eval:#6FC7E6; --eval-soft:#122A33;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0C1017; --surface:#141A24; --ink:#E7EBF1; --ink-2:#BCC4D0; --muted:#8C96A6; --rule:#263041;
+  --accent:#9A9DFF; --accent-soft:#23264A; --accent-ink:#121925;
+  --power:#F0B865; --power-soft:#352812;
+  --ok:#6FD3A6; --ok-soft:#13302A; --bad:#E8847A; --bad-soft:#3A1E1C;
+  --canvas-bg:#10151E; --canvas-grid:#1C2432;
+  --eval:#6FC7E6; --eval-soft:#122A33;
+}
+*{box-sizing:border-box}
+body{background:var(--ground); color:var(--ink); font-family:var(--serif); font-size:17px; line-height:1.6; margin:0; padding-inline:20px; -webkit-font-smoothing:antialiased}
+.wrap{max-width:860px; margin-inline:auto}
+a{color:var(--accent)}
+h1,h2,h3{font-family:var(--display); letter-spacing:-.02em; text-wrap:balance; margin:0}
+.mono{font-family:var(--mono)}
+.eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+.mark{font-family:var(--display); font-weight:750; font-size:15px; padding-block:18px}
+.mark span{color:var(--accent)}
+
+/* ---- hero ---- */
+.hero{padding-block:28px 56px; border-bottom:1px solid var(--rule)}
+.hero h1{font-weight:750; font-size:clamp(30px,4.8vw,48px); line-height:1.06; margin-bottom:20px}
+.hero-grid{display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:32px; align-items:start}
+@media (max-width:620px){
+  .hero-grid{grid-template-columns:minmax(0,1fr)}
+  .sec-h{font-size:22px}
+}
+.hero p{font-size:18px; line-height:1.6; color:var(--ink-2); margin:0}
+.hero .byline{font-family:var(--mono); font-size:12.5px; color:var(--muted); margin-top:14px; line-height:1.6}
+.stat-card{background:var(--surface); border:1px solid var(--rule); border-radius:14px; padding:22px; text-align:center}
+.stat-num{font-family:var(--display); font-weight:750; font-size:46px; color:var(--accent); line-height:1; letter-spacing:-.02em}
+.stat-label{font-family:var(--mono); font-size:12.5px; color:var(--muted); margin-top:10px; line-height:1.5}
+.stat-sub{font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:14px; padding-top:14px; border-top:1px solid var(--rule)}
+.authors{display:flex; flex-wrap:wrap; align-items:center; gap:12px 18px; margin-top:18px}
+.authors-names{font-family:var(--mono); font-size:12.5px; color:var(--ink-2)}
+.authors-names b{color:var(--ink); font-weight:650}
+.fa-tag{font-size:8.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--accent); background:var(--accent-soft); padding:2px 6px; border-radius:5px; margin:0 6px; vertical-align:middle; white-space:nowrap}
+.paper-link{display:inline-flex; align-items:center; gap:5px; font-family:var(--mono); font-size:11.5px; font-weight:600; color:var(--accent); background:var(--accent-soft); padding:6px 12px; border-radius:999px; text-decoration:none; white-space:nowrap}
+.paper-link:hover{opacity:.82}
+.authors-card{display:flex; flex-direction:column; align-items:center; gap:3px}
+.authors-card-name{font-family:var(--mono); font-size:14px; color:var(--ink); font-weight:650}
+.authors-card .fa-tag{margin:5px 0}
+.authors-card-co{font-family:var(--mono); font-size:12.5px; color:var(--ink-2)}
+.authors-card-aff{font-family:var(--mono); font-size:11px; color:var(--muted); margin-bottom:12px}
+
+/* ---- sections ---- */
+section.proj{padding-block:52px; border-bottom:1px solid var(--rule)}
+section.proj:last-of-type{border-bottom:none}
+.sec-num{font-family:var(--mono); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:10px}
+.sec-h{font-weight:700; font-size:clamp(23px,3vw,30px); line-height:1.15; margin-bottom:16px}
+.sec-body{max-width:66ch; color:var(--ink-2); font-size:16px; line-height:1.65; margin-bottom:28px}
+.sec-body strong{color:var(--ink); font-weight:600}
+.figure-box{background:var(--surface); border:1px solid var(--rule); border-radius:14px; padding:22px}
+.cap{font-family:var(--mono); font-size:12px; color:var(--muted); fill:var(--muted); line-height:1.6; margin-top:14px}
+.arch-headline{font-family:var(--display); font-weight:750; font-size:clamp(18px,2.6vw,24px); text-align:center; margin-top:18px; color:var(--ink)}
+.arch-img-card{background:#fff; padding:16px; display:flex; justify-content:center}
+.arch-img{width:100%; height:auto; max-width:900px; display:block; border-radius:6px}
+
+/* ---- section 1: MDP loop ---- */
+.mdp-svg{width:100%; height:auto; display:block}
+.mdp-node{fill:var(--canvas-bg); stroke:var(--rule); stroke-width:1.3; filter:drop-shadow(0 1px 3px rgba(20,30,60,.06))}
+.mdp-node.state-node{fill:var(--accent-soft); stroke:var(--accent)}
+.mdp-node.action-node{fill:var(--power-soft); stroke:var(--power)}
+.mdp-node.next-node{fill:var(--ok-soft); stroke:var(--ok)}
+.mdp-node.objective-node{fill:var(--eval-soft); stroke:var(--eval)}
+.mdp-eyebrow{font-family:var(--mono); font-size:9.5px; font-weight:650; letter-spacing:.09em}
+.mdp-eyebrow.state-text{fill:var(--accent)}
+.mdp-eyebrow.action-text{fill:var(--power)}
+.mdp-eyebrow.next-text{fill:var(--ok)}
+.mdp-eyebrow.objective-text{fill:var(--eval)}
+.mdp-label{font-family:var(--display); font-weight:650; font-size:14px; fill:var(--ink)}
+.mdp-math{font-family:var(--mono); font-size:12.5px; font-weight:500; fill:var(--ink)}
+.mdp-sub{font-family:var(--mono); font-size:9.5px; fill:var(--muted)}
+.mdp-note{fill:var(--surface); stroke:var(--rule); stroke-width:1.2; stroke-dasharray:3,3}
+.mdp-note-text{font-family:var(--mono); font-size:10px; font-weight:650; letter-spacing:.04em; fill:var(--ink-2)}
+.mdp-arrow{stroke:var(--ink-2); stroke-width:1.8; fill:none; marker-end:url(#mdp-arrowhead)}
+.mdp-feedback{stroke:var(--muted); stroke-width:1.5; stroke-dasharray:4,3; fill:none; marker-end:url(#mdp-arrowhead)}
+.mdp-caption-label{font-family:var(--mono); font-size:10.5px; letter-spacing:.07em; fill:var(--muted)}
+.mdp-pulse{fill:var(--accent)}
+.mdp-pulse-glow{fill:var(--accent); opacity:.45}
+body.reduced-motion .mdp-pulse,
+body.reduced-motion .mdp-pulse-glow{ display:none }
+.mdp-badge{display:flex; align-items:center; font-family:var(--mono); font-size:11.5px; font-weight:600; letter-spacing:.03em; color:var(--ink-2); background:var(--canvas-bg); border:1px solid var(--rule); border-radius:8px; padding:9px 13px; margin-bottom:16px; line-height:1.5}
+.mdp-dot{display:inline-block; width:7px; height:7px; min-width:7px; border-radius:50%; background:var(--accent); margin-right:9px; box-shadow:0 0 0 3px var(--accent-soft)}
+
+/* ---- section 2: system geometry ---- */
+.sysvar-row{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+@media (max-width:560px){ .sysvar-row{grid-template-columns:1fr} }
+
+/* ---- MDP: proposed vs conventional comparison ---- */
+.mdpcmp-row{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px}
+@media (max-width:620px){ .mdpcmp-row{grid-template-columns:1fr} }
+.mdpcmp-card{border:1.5px solid var(--rule); border-radius:12px; padding:16px 18px; background:var(--canvas-bg)}
+.mdpcmp-card.proposed{border-color:var(--ok)}
+.mdpcmp-card.conventional{border-color:var(--muted)}
+.mdpcmp-title{font-family:var(--display); font-weight:700; font-size:14px; margin-bottom:10px}
+.mdpcmp-card.proposed .mdpcmp-title{color:var(--ok)}
+.mdpcmp-card.conventional .mdpcmp-title{color:var(--ink-2)}
+.mdpcmp-row2{font-family:var(--mono); font-size:11.5px; color:var(--ink-2); line-height:1.5; margin-bottom:8px}
+.mdpcmp-row2 b{color:var(--ink); font-weight:650}
+.mdpcmp-verdict{font-family:var(--mono); font-size:11px; line-height:1.5; margin-top:10px; padding-top:10px; border-top:1px dashed var(--rule)}
+.mdpcmp-card.proposed .mdpcmp-verdict{color:var(--ok)}
+.mdpcmp-card.conventional .mdpcmp-verdict{color:var(--ink-2)}
+.mdpcmp-subtitle{font-family:var(--mono); font-size:10.5px; letter-spacing:.03em; text-transform:uppercase; color:var(--muted); margin-bottom:6px}
+.mdpcmp-desc{font-size:12.5px; color:var(--ink-2); line-height:1.5; margin-bottom:12px}
+.mdpcmp-traj{width:100%; height:auto; display:block; margin-bottom:12px; background:var(--surface); border-radius:8px}
+.traj-dot{fill:var(--muted)}
+.traj-path{fill:none; stroke:var(--muted); stroke-width:1.3; stroke-dasharray:2.5,3}
+.mdpcmp-card.proposed .traj-dot{fill:var(--ok)}
+.mdpcmp-card.proposed .traj-path{stroke:var(--ok); stroke-dasharray:none}
+.mdp-ground{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-family:var(--mono); font-size:11.5px; color:var(--ink-2); background:var(--canvas-bg); border:1px solid var(--rule); border-radius:8px; padding:10px 14px; margin-top:16px}
+.mdp-ground .sym{font-weight:700; padding:1px 6px; border-radius:5px}
+.mdp-ground .sym.phi{color:var(--accent); background:var(--accent-soft)}
+.mdp-ground .sym.f{color:var(--power); background:var(--power-soft)}
+
+/* ---- MDP: vertical stage-by-stage flow ---- */
+.mdp-flow{display:flex; flex-direction:column; align-items:center; padding:4px 0 2px}
+.mdp-flow-stage{width:100%; max-width:480px; text-align:center; padding:16px 22px; border-radius:14px}
+.mdp-flow-stage.boxed{background:var(--canvas-bg); border:1.5px solid var(--rule)}
+.mdp-flow-stage.policy.boxed{border-color:var(--power)}
+.mdp-flow-stage.env.boxed{border-color:var(--ok)}
+.mdp-flow-title{font-family:var(--display); font-weight:700; font-size:18px; color:var(--ink); margin-bottom:9px}
+.mdp-flow-math{font-family:Georgia,"Source Serif 4",serif; font-style:italic; font-size:21px; color:var(--ink); margin-bottom:8px; letter-spacing:.01em}
+.mdp-flow-math sub{font-size:0.6em; font-style:normal}
+.mdp-flow-desc{font-family:var(--mono); font-size:12px; color:var(--muted)}
+.mdp-flow-arrow{font-size:19px; color:var(--muted); padding:9px 0; line-height:1}
+.mdp-flow-feedback{margin-top:16px; font-family:var(--mono); font-size:12.5px; color:var(--ok); display:flex; align-items:center; gap:7px; justify-content:center; text-align:center}
+.sysvar-card{border:1px solid var(--rule); border-radius:12px; padding:16px 18px; background:var(--canvas-bg)}
+.sysvar-card.theta{border-color:color-mix(in srgb, var(--accent) 35%, var(--rule))}
+.sysvar-card.power{border-color:color-mix(in srgb, var(--power) 35%, var(--rule))}
+.sysvar-sym{font-family:var(--mono); font-size:22px; font-weight:650; margin-bottom:6px}
+.sysvar-card.theta .sysvar-sym{color:var(--accent)}
+.sysvar-card.power .sysvar-sym{color:var(--power)}
+.sysvar-name{font-family:var(--display); font-weight:650; font-size:14.5px; color:var(--ink); margin-bottom:5px}
+.sysvar-desc{font-size:13px; color:var(--ink-2); line-height:1.5}
+
+/* ---- formal objective block ---- */
+.obj-block{background:var(--canvas-bg); border:1.5px solid var(--rule); border-radius:12px; padding:26px 24px 24px; margin:4px 0 2px}
+.obj-grid{display:grid; grid-template-columns:auto 1fr; column-gap:16px; row-gap:12px; width:100%; max-width:540px; margin-inline:auto}
+.obj-label{font-family:Georgia,"Source Serif 4",serif; font-weight:650; font-size:18px; color:var(--ink); text-align:right; white-space:nowrap; align-self:start; padding-top:1px}
+.obj-label.small{font-size:14.5px; color:var(--ink-2); font-weight:600}
+.obj-vars{font-size:0.56em; font-style:italic; font-weight:500; vertical-align:sub; margin-left:1px}
+.obj-math{font-family:Georgia,"Source Serif 4",serif; font-style:italic; font-size:18px; color:var(--ink); text-align:left}
+.obj-math.small{font-size:14.5px; color:var(--ink-2)}
+@media (max-width:480px){
+  .obj-grid{column-gap:10px}
+  .obj-label{font-size:14px}
+  .obj-math{font-size:14px}
+  .obj-label.small, .obj-math.small{font-size:12px}
+}
+.geo-svg{width:100%; max-width:600px; height:auto; display:block; margin-inline:auto}
+.geo-node{fill:var(--canvas-bg); stroke:var(--ink-2); stroke-width:1.3}
+.geo-node.tx{fill:var(--accent-soft); stroke:var(--accent)}
+.geo-node.rx{fill:var(--ok-soft); stroke:var(--ok)}
+.geo-node.ris{fill:var(--power-soft); stroke:var(--power)}
+.geo-label{font-family:var(--mono); font-size:10.5px; fill:var(--ink)}
+.geo-sub{font-family:var(--mono); font-size:9px; fill:var(--muted)}
+.geo-link{stroke:var(--rule); stroke-width:1.2; fill:none}
+.geo-link.direct{stroke-dasharray:3,3}
+.geo-axis{stroke:var(--rule); stroke-width:1}
+.geo-axis-label{font-family:var(--mono); font-size:9px; fill:var(--muted)}
+
+/* ---- section 3: SAC architecture ---- */
+.nn-icon{stroke:currentColor; stroke-width:.7; opacity:.5; fill:currentColor}
+.nn-icon circle{opacity:1}
+.nn-icon.phase{color:var(--accent)}
+.nn-icon.power{color:var(--power)}
+.nn-icon.neutral{color:var(--ink-2); opacity:.8}
+.nn-icon.ghost{color:var(--muted); opacity:.5}
+.arch-box{fill:var(--canvas-bg); stroke:var(--rule)}
+.arch-box.core{fill:var(--surface); stroke:var(--ink); stroke-width:1.4}
+.arch-label{font-family:var(--display); font-weight:650; font-size:12.5px; fill:var(--ink)}
+.arch-label.small{font-size:11.5px}
+.arch-sub{font-family:var(--mono); font-size:9px; fill:var(--muted)}
+.arch-eyebrow{font-family:var(--mono); font-size:9px; font-weight:650; letter-spacing:.07em; fill:var(--muted)}
+.arch-ghost{fill:none; stroke:var(--muted); stroke-width:1.1; stroke-dasharray:3,3; opacity:.6}
+.arch-ghost-arrow{fill:none; stroke:var(--muted); stroke-width:1.1; stroke-dasharray:3,3; opacity:.6}
+.arch-ghost-text{font-family:var(--mono); font-size:9px; fill:var(--muted); opacity:.8}
+.arch-ghost-text.label{font-size:10.5px; font-weight:650}
+.arch-small-label{font-family:var(--mono); font-size:10px; font-weight:650}
+.arch-small-label.phase{fill:var(--accent)}
+.arch-small-label.power{fill:var(--power)}
+
+/* ---- episodic training strip ---- */
+.ep-strip{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-family:var(--mono); font-size:11.5px; color:var(--ink-2); background:var(--canvas-bg); border:1px solid var(--rule); border-radius:8px; padding:10px 14px; margin-bottom:16px}
+.ep-strip b{color:var(--ink)}
+.ep-arrow{color:var(--muted)}
+
+/* ---- section 4: results ---- */
+.toggle-row{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px}
+.toggle-btn{display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:10px 14px; border-radius:12px; border:1px solid var(--rule); background:var(--surface); cursor:pointer; text-align:left}
+.toggle-label{font-family:var(--display); font-size:13px; font-weight:650; color:var(--ink)}
+.toggle-formula{font-family:var(--mono); font-size:11px; color:var(--muted)}
+.toggle-btn[aria-pressed="true"]{background:var(--ink); border-color:var(--ink)}
+.toggle-btn[aria-pressed="true"] .toggle-label{color:var(--ground)}
+.toggle-btn[aria-pressed="true"] .toggle-formula{color:var(--ground); opacity:.8}
+.chart-svg{width:100%; height:auto; display:block; background:var(--canvas-bg); border-radius:8px}
+.chart-cursor{stroke:var(--ink-2); stroke-width:1; stroke-dasharray:3,3}
+.rate-line{fill:none; stroke:var(--accent); stroke-width:1.8}
+.ep-line{fill:none; stroke:var(--ok); stroke-width:2.2}
+.ep-dot{fill:var(--ok)}
+.demo-controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px}
+.demo-controls input[type=range]{flex:1; min-width:80px; accent-color:var(--accent)}
+.demo-controls label{font-family:var(--mono); font-size:11px; color:var(--muted)}
+.demo-controls .mono{font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap}
+.btn{font-family:var(--mono); font-size:13px; padding:9px 16px; border-radius:8px; border:1px solid var(--rule); background:var(--surface); color:var(--ink); cursor:pointer}
+.btn.primary{background:var(--ink); color:var(--ground); border-color:var(--ink)}
+.btn.primary:hover{background:var(--accent); border-color:var(--accent)}
+.demo-legend{display:flex; gap:16px; margin-top:14px; font-family:var(--mono); font-size:11.5px; color:var(--muted); flex-wrap:wrap}
+.demo-legend .sw{display:inline-block; width:12px; height:3px; border-radius:2px; margin-right:5px; vertical-align:middle}
+.demo-legend-val{color:var(--ink); font-weight:650}
+.demo-grid{display:grid; grid-template-columns:minmax(0,1fr); gap:20px}
+.env3d-stage{position:relative; width:100%; height:340px; border-radius:10px; background:var(--canvas-bg); overflow:hidden; cursor:grab}
+.env3d-stage.dragging{cursor:grabbing}
+.env3d-stage canvas{display:block; width:100%; height:100%}
+.env3d-label{position:absolute; transform:translate(-50%,-100%); font-family:var(--mono); font-size:10px; font-weight:500; color:var(--ink); background:color-mix(in srgb, var(--surface) 78%, transparent); padding:1px 5px; border-radius:4px; white-space:nowrap; pointer-events:none}
+.env3d-label-muted{color:var(--muted); font-weight:400}
+.env3d-label-strong{color:var(--ink); font-weight:650; font-size:10px; letter-spacing:.01em; text-transform:uppercase; background:color-mix(in srgb, var(--surface) 90%, transparent)}
+.stat-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-top:20px}
+.stat-chip{border:1px solid var(--rule); border-radius:10px; padding:14px 16px; background:var(--canvas-bg)}
+.stat-chip .num{font-family:var(--display); font-weight:750; font-size:22px; color:var(--ok)}
+.stat-chip .lbl{font-family:var(--mono); font-size:10.5px; color:var(--muted); margin-top:4px; line-height:1.4}
+
+/* ---- closing ---- */
+.closing{padding-block:52px; text-align:left}
+.closing p{max-width:68ch; font-size:17px; color:var(--ink-2); line-height:1.65}
+.closing .pill{display:inline-block; font-family:var(--mono); font-size:12px; color:var(--ok); background:var(--ok-soft); padding:5px 11px; border-radius:999px; margin-bottom:16px}
+footer{padding-block:28px 40px; font-family:var(--mono); font-size:11.5px; color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="mark">Ayush B. Patel<span>.</span></div>
+
+  <header class="hero">
+    <h1>Rate Optimization in Distributed RIS Aided MIMO System Using Soft Actor-Critic Method of DRL</h1>
+    <div class="hero-grid">
+      <div>
+        <p>Precoding at the transmitter and phase shifts across multiple reconfigurable intelligent surfaces (RISs) must be jointly optimized to maximize rate — a non-convex, NP-hard problem. I designed a Markov decision process formulation and a Soft Actor-Critic (SAC) agent for it, with an episodic training strategy that starts every episode from the same fixed state rather than a random one, turning the optimization into something closer to a game the agent learns to win consistently.</p>
+      </div>
+      <div class="stat-card authors-card">
+        <div class="authors-card-name"><b>Ayush B. Patel</b></div>
+        <div class="fa-tag">first author</div>
+        <div class="authors-card-co">&amp; Abhishek Jindal</div>
+        <div class="authors-card-aff">DAIICT</div>
+        <a class="paper-link" href="https://ieeexplore.ieee.org/document/11310634" target="_blank" rel="noopener">Published &middot; IEEE VTC2025-Fall &#8599;</a>
+      </div>
+    </div>
+    <div class="byline">Deep Reinforcement Learning &middot; Soft Actor-Critic &middot; Markov Decision Process &middot; DDPG &amp; AO benchmarks</div>
+  </header>
+
+  <!-- ============== SECTION 1 — THE CONTROL LOOP ============== -->
+  <section class="proj" id="mdp">
+    <div class="eyebrow sec-num">01 &mdash; Proposed vs. conventional formulation</div>
+    <h2 class="sec-h">From Non-Convex Optimization to Sequential Decision-Making</h2>
+    <p class="sec-body">Jointly optimizing the RIS phase-shift matrices &Phi; and precoding matrix F to maximize achievable rate is a challenging non-convex problem with a high-dimensional, continuous search space. Although a candidate solution can be evaluated in a single forward pass, finding a good solution requires navigating a complex optimization landscape. This work recasts the problem as sequential decision-making: rather than selecting the entire solution at once, a Soft Actor-Critic (SAC) agent applies bounded updates to the current solution, progressively refining it over an episode.</p>
+    <p class="sec-body">In several existing formulations, the state includes the fixed channel realization and the previous action, while the next state is determined solely by the newly applied action, independently of the current state. This makes successive decisions effectively independent of the current optimization variables. The proposed formulation instead defines the state through the current optimization variables and uses incremental actions to update them, allowing each decision to build on the solution reached in the preceding step.</p>
+    <div class="mdpcmp-row">
+      <div class="mdpcmp-card proposed">
+        <div class="mdpcmp-title">Proposed &mdash; incremental-action formulation</div>
+        <div class="mdpcmp-subtitle">Incremental refinement</div>
+        <p class="mdpcmp-desc">Each bounded update starts from the current solution, producing a trajectory of successive refinements.</p>
+        <svg class="mdpcmp-traj" viewBox="0 0 220 70" aria-hidden="true">
+          <path class="traj-path" d="M20,55 L55,42 L92,38 L128,24 L165,20 L200,14"></path>
+          <circle class="traj-dot" cx="20" cy="55" r="4"></circle>
+          <circle class="traj-dot" cx="55" cy="42" r="3"></circle>
+          <circle class="traj-dot" cx="92" cy="38" r="3"></circle>
+          <circle class="traj-dot" cx="128" cy="24" r="3"></circle>
+          <circle class="traj-dot" cx="165" cy="20" r="3"></circle>
+          <circle class="traj-dot" cx="200" cy="14" r="4.5"></circle>
+        </svg>
+        <div class="mdpcmp-row2"><b>state</b> s&#8348; = [&Phi;&#8348;, F&#8348;]</div>
+        <div class="mdpcmp-row2"><b>action</b> bounded update &Delta;&#8348;</div>
+        <div class="mdpcmp-row2"><b>transition</b> s&#8348;&#8339;&#8321; = f(s&#8348;, &Delta;&#8348;)</div>
+        <div class="mdpcmp-verdict">Each transition refines the current solution.</div>
+      </div>
+      <div class="mdpcmp-card conventional">
+        <div class="mdpcmp-title">Conventional &mdash; absolute-action formulation</div>
+        <div class="mdpcmp-subtitle">Independent proposals</div>
+        <p class="mdpcmp-desc">Absolute action selects the next candidate; the previous solution does not determine the transition.</p>
+        <svg class="mdpcmp-traj" viewBox="0 0 220 70" aria-hidden="true">
+          <circle class="traj-dot" cx="30" cy="40" r="4"></circle>
+          <circle class="traj-dot" cx="90" cy="18" r="4"></circle>
+          <circle class="traj-dot" cx="130" cy="52" r="4"></circle>
+          <circle class="traj-dot" cx="185" cy="26" r="4"></circle>
+        </svg>
+        <div class="mdpcmp-row2"><b>state</b> s&#8348; = [H, a&#8348;&minus;&#8321;]</div>
+        <div class="mdpcmp-row2"><b>action</b> a&#8348; = [&Phi;&#8348;, F&#8348;]</div>
+        <div class="mdpcmp-row2"><b>transition</b> s&#8348;&#8339;&#8321; = [H, a&#8348;]</div>
+        <div class="mdpcmp-verdict">Next state is independent of the current optimization state.</div>
+      </div>
+    </div>
+    <p class="cap" style="text-align:center">Conceptual illustration only; the paths are not measured optimization trajectories.</p>
+    <p class="cap">Compared against this alternate formulation (AF) under otherwise identical SAC training, the proposed formulation (PF) improves the achievable rate by 15.5% &mdash; see Section 04.</p>
+
+    <h3 class="subsec-h" style="margin-top:32px; font-size:17px">How the proposed loop runs, step by step</h3>
+    <div class="figure-box">
+      <div class="mdp-badge">
+        <span class="mdp-dot"></span>
+        OBSERVE STATE &rarr; PROPOSE UPDATE &rarr; PROJECT CONSTRAINTS &rarr; EVALUATE RATE &rarr; REPEAT
+      </div>
+      <div class="mdp-flow" role="img" aria-label="Sequential MDP loop: current solution feeds the SAC policy, which proposes a bounded update; the environment applies the update and projects it onto the feasibility constraints; the resulting achievable rate is evaluated and rewarded; the updated state then feeds the next step.">
+        <div class="mdp-flow-stage">
+          <div class="mdp-flow-title">Current solution</div>
+          <div class="mdp-flow-math">s<sub>t</sub> = (&Phi;<sub>t</sub>, F<sub>t</sub>)</div>
+          <div class="mdp-flow-desc">Current RIS phases and precoder</div>
+        </div>
+        <div class="mdp-flow-arrow">&darr;</div>
+        <div class="mdp-flow-stage boxed policy">
+          <div class="mdp-flow-title">SAC policy</div>
+          <div class="mdp-flow-math">a<sub>t</sub> = &Delta;<sub>t</sub></div>
+          <div class="mdp-flow-desc">Choose a bounded update</div>
+        </div>
+        <div class="mdp-flow-arrow">&darr;</div>
+        <div class="mdp-flow-stage boxed env">
+          <div class="mdp-flow-title">Update and project</div>
+          <div class="mdp-flow-math">s<sub>t+1</sub> = f(s<sub>t</sub>, a<sub>t</sub>)</div>
+          <div class="mdp-flow-desc">Apply the update and enforce constraints</div>
+        </div>
+        <div class="mdp-flow-arrow">&darr;</div>
+        <div class="mdp-flow-stage">
+          <div class="mdp-flow-title">Evaluate achievable rate</div>
+          <div class="mdp-flow-math">r<sub>t</sub> = 1000(C<sub>t+1</sub> &minus; C<sub>t</sub>)</div>
+          <div class="mdp-flow-desc">Reward the change in objective</div>
+        </div>
+        <div class="mdp-flow-feedback">&#8624;&nbsp;Feed the updated state into the next step</div>
+      </div>
+      <p class="cap">At each step, SAC proposes an incremental change rather than an entirely new solution. The environment applies the update, enforces the RIS unit-modulus and precoding power constraints, and evaluates the resulting achievable rate. The updated optimization variables form the next state, while the rate improvement determines the reward.</p>
+
+      <p class="cap">C is the Shannon capacity of the effective channel H&#8337; = &Sigma;&#7522; H<sub>L&#7522;D</sub>&Phi;&#7522;H<sub>SL&#7522;</sub> + H<sub>SD</sub> under the current precoding F. Because the reward is a pure difference, the sum of rewards over an episode telescopes to 1000&middot;(C<sub>final</sub> &minus; C<sub>start</sub>) &mdash; maximizing expected return is literally maximizing the rate gained.</p>
+
+      <div class="mdp-ground">
+        <span>Grounded, not abstract:</span>
+        <span><span class="sym phi">&Phi;</span> and <span class="sym f">F</span> above are exactly the RIS phase-shift matrices and the precoding matrix of the real system in the next section &mdash; nothing here is a stand-in variable.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============== SECTION 2 — THE SYSTEM ============== -->
+  <section class="proj" id="system">
+    <div class="eyebrow sec-num">02 &mdash; The system</div>
+    <h2 class="sec-h">Grounding the formulation in a distributed RIS-aided MIMO link</h2>
+    <p class="sec-body">A transmitter with antennas sends data streams to a receiver with antennas, precoded by F before transmission. The signal reaches the receiver two ways: directly, over the line-of-sight path, and indirectly, bounced once off each of independently placed, passive reconfigurable intelligent surfaces (RISs) sitting between them. Each RIS carries no amplifier and radiates no power of its own &mdash; it only reshapes the phase of whatever hits it &mdash; so every useful watt in the received signal still has to come from the transmitter's own precoding.</p>
+    <p class="sec-body">Every RIS has passive reflecting elements, and each element applies its own phase shift to the signal reflecting off it &mdash; together these form a diagonal phase-shift matrix &Phi;<sub>i</sub> per surface, every element constrained to unit modulus, so it can only rotate the phase of what hits it, never amplify or attenuate it. At the receiver, the direct path and all three once-reflected paths add together into a single effective channel; choosing the  &Phi;<sub>i</sub>&rsquo;s and F together to maximize that channel's achievable rate is exactly the non-convex problem.</p>
+    <div class="figure-box">
+      <div class="sysvar-row">
+        <div class="sysvar-card theta">
+          <div class="sysvar-sym">&Phi;</div>
+          <div class="sysvar-name">RIS phase shifts</div>
+          <div class="sysvar-desc">Cascaded surfaces, each a diagonal matrix of unit-modulus reflection coefficients &mdash; every element constrained to |&phi;| = 1.</div>
+        </div>
+        <div class="sysvar-card power">
+          <div class="sysvar-sym">F</div>
+          <div class="sysvar-name">Precoding matrix</div>
+          <div class="sysvar-desc">Maps data streams onto the transmit antennas, constrained to &#8214;F&#8214;&sup2;<sub>F</sub> &le; P<sub>tx</sub> = 40&nbsp;dBm.</div>
+        </div>
+      </div>
+
+      <div class="env3d-stage" id="sys3d-stage"></div>
+      <div class="demo-legend">
+        <span><span class="sw" style="background:#8890a8"></span>Tx &middot; 4 antennas</span>
+        <span><span class="sw" style="background:#f0b865"></span>3 RISs &middot; 10 elements each</span>
+        <span><span class="sw" style="background:#6fd3a6"></span>Rx &middot; 4 antennas</span>
+      </div>
+      <p class="cap">Drag to rotate. Real positions &mdash; Tx (0,0,10), RISs at x=600/630/660 (y=2,z=10), Rx (620,0,0), all in metres &mdash; spacing compressed for legibility, not to linear scale. M = 10 reflecting elements per surface in this run. Channels are Rayleigh-faded with large-scale path loss &beta;&#8320;(d/d&#8320;)<sup>&minus;&alpha;</sup>, &beta;&#8320; = &minus;30&nbsp;dBm at d&#8320; = 1&nbsp;m, each link its own real exponent &mdash; &alpha;=2.2 Tx&rarr;RIS, &alpha;=2.8 RIS&rarr;Rx, &alpha;=3.5 direct Tx&rarr;Rx; receiver noise &minus;90&nbsp;dBm.</p>
+    </div>
+
+    <h3 class="subsec-h" style="margin-top:28px; font-size:17px">The optimization problem, on exactly this system</h3>
+    <p class="sec-body"> The objective is to choose all phase-shift matrices and the precoding matrix together to maximize achievable rate:</p>
+    <div class="obj-block">
+      <div class="obj-grid">
+        <span class="obj-label">max<sub class="obj-vars">&Phi;&#8321;,&Phi;&#8322;,&Phi;&#8323;,F</sub></span>
+        <span class="obj-math">C(&Phi;,F) = log&#8322; |I + H&#8337;FF<sup>H</sup>H&#8337;<sup>H</sup>/&sigma;&sup2;|</span>
+
+        <span class="obj-label small">subject to</span>
+        <span class="obj-math small">&#8214;F&#8214;&sup2;<sub>F</sub> &le; P<sub>tx</sub></span>
+
+        <span class="obj-label small"></span>
+        <span class="obj-math small">|[&Phi;<sub>i</sub>]<sub>k,k</sub>| = 1,&nbsp; &forall;i,k</span>
+      </div>
+    </div>
+    <p class="cap" style="text-align:center; margin-top:10px">where &Phi;<sub>i</sub> = phase-shift matrix of RIS i, F = precoding matrix, H&#8337; = effective channel (direct + 3 reflected paths), &sigma;&sup2; = noise power, P<sub>tx</sub> = transmit power budget.</p>
+    <p class="sec-body" style="margin-top:14px">Every &Phi;<sub>i</sub> is constrained to unit modulus on its diagonal, and F is constrained to the 40&nbsp;dBm power budget &mdash; both non-convex on their own, and coupled together through the same channel, which is what makes the joint problem NP-hard.</p>
+    <p class="sec-body" style="margin-bottom:0">The proposed MDP from Section 01 acts directly on these objects, on this exact system: the state is [&Phi;&#8321;,&Phi;&#8322;,&Phi;&#8323;,F] flattened into one vector, the action a bounded delta to every element of it, the environment renormalizes each &Phi;&#7522; back onto the unit circle and rescales F back inside the power budget, and the reward is the resulting change in C &mdash; computed on exactly this real, seeded channel.</p>
+  </section>
+
+  <!-- ============== SECTION 3 — WHY SAC + EPISODIC TRAINING ============== -->
+  <section class="proj" id="arch">
+    <div class="eyebrow sec-num">03 &mdash; Why Soft Actor-Critic</div>
+    <h2 class="sec-h">Five networks, trained to stay stable in a stochastic, non-convex landscape</h2>
+    <p class="sec-body">SAC optimizes a stochastic policy by maximizing expected return <em>and</em> policy entropy together, which keeps the agent exploring instead of collapsing onto the first decent configuration it finds. Twin critics reduce overestimation bias; a separate value network, updated by Polyak averaging, keeps the Bellman targets stable while the policy keeps changing underneath it.</p>
+    <div class="figure-box arch-img-card">
+      <img src="assets/sac-architecture.webp" alt="SAC architecture diagram: the actor network outputs a reparameterized, tanh-squashed Gaussian action; twin critics and a Polyak-averaged value / target-value pair train against samples from the replay buffer." class="arch-img">
+    </div>
+    <div class="arch-headline">One Policy, Entropy-Regularized, Trained Against Its Own Stabilized Shadow</div>
+    <p class="cap" style="text-align:center; max-width:66ch; margin:10px auto 0">The actual architecture diagram from the paper</p>
+
+    <h3 class="subsec-h" style="margin-top:28px; font-size:17px">A distinctive training strategy: same start, every episode</h3>
+    <p class="sec-body" style="margin-bottom:16px">Rather than one long episode of up to 10,000 steps, or a random reset each time, every episode here starts from the <strong>same fixed state</strong>. The agent effectively plays the same optimization "level" repeatedly, and the best state found across all its attempts for that channel is what gets returned &mdash; fewer total steps needed, and far more consistent convergence.</p>
+    <div class="ep-strip">
+      <span><b>Fixed start</b> s&#8320;</span><span class="ep-arrow">&rarr;</span>
+      <span><b>300 steps</b> of SAC updates</span><span class="ep-arrow">&rarr;</span>
+      <span>track <b>max rate</b> seen</span><span class="ep-arrow">&rarr;</span>
+      <span>reset to s&#8320;, repeat &times;30</span><span class="ep-arrow">&rarr;</span>
+      <span>return <b>best state found</b></span>
+    </div>
+  </section>
+
+  <!-- ============== SECTION 4 — RESULTS ============== -->
+  <section class="proj" id="results">
+    <div class="eyebrow sec-num">04 &mdash; Results</div>
+    <h2 class="sec-h">The raboveeal training run, and what the evaluation found</h2>
+    <p class="sec-body">What's below is one complete, real run of the proposed SAC agent.
+
+    </p>
+    <div class="figure-box">
+      <div class="demo-controls">
+        <button class="btn primary" id="demo-play">Pause</button>
+        <label for="demo-scrub">Step</label>
+        <input type="range" id="demo-scrub" min="0" max="8999" step="1" value="0">
+        <span class="mono" id="demo-step-lbl">step 0 / 9,000</span>
+      </div>
+      <svg class="chart-svg" id="chart-rate" viewBox="0 0 700 160"></svg>
+      <div class="demo-legend">
+        <span><span class="sw" style="background:var(--accent)"></span>achievable rate C&#8348; <span class="demo-legend-val" id="rate-val">&mdash;</span> bps/Hz</span>
+        <span class="mono" id="ep-lbl" style="color:var(--muted)">episode 1 / 30</span>
+      </div>
+      <p class="cap">Starting rate 5.74 bps/Hz &rarr; converges to ~6.95 bps/Hz for this channel (&asymp;21% gain) in roughly 12 episodes, then holds. Real <code>rate</code> log from the SAC agent, seed-fixed channel, 40&nbsp;dBm power budget.</p>
+    </div>
+
+    <h3 class="subsec-h" style="margin-top:28px; font-size:17px">Episode-level summary, same run</h3>
+    <p class="sec-body" style="margin-bottom:16px">The best rate reached within each of the 30 episodes, computed directly from the step-level log above :</p>
+    <div class="figure-box">
+      <svg class="chart-svg" id="chart-episodes" viewBox="0 0 700 130"></svg>
+      <p class="cap">Max achievable rate per episode, this run. Compare with Fig. 1/5 in the paper, which average this same quantity over 250 independent channels.</p>
+    </div>
+
+    <h3 class="subsec-h" style="margin-top:28px; font-size:17px">SAC vs. DDPG, proposed vs. alternate formulation</h3>
+    <p class="sec-body" style="margin-bottom:16px">The same comparison behind the headline numbers below, plotted directly: SAC under the proposed formulation (PF) pulls ahead of DDPG under the same formulation, and both comfortably outperform SAC trained under the alternate formulation (AF) &mdash; the absolute-action formulation from Section 01, whose next state doesn't build on the current solution.</p>
+    <div class="figure-box arch-img-card">
+      <img src="assets/results-comparison.png" alt="Achievable rate versus timesteps over a 9000-step run: SAC(PF) in green converges to about 7.3 bps/Hz, DDPG(PF) in blue to about 6.6 bps/Hz, and SAC(AF) in red to about 6.0 bps/Hz." class="arch-img">
+    </div>
+    <p class="cap" style="text-align:center; max-width:66ch; margin:10px auto 0">Real training curves, same fixed-restart episodic strategy as the scrubbable run above. SAC(PF) converges fastest and highest; SAC(AF) &mdash; same algorithm, absolute-action state &mdash; visibly struggles by comparison.</p>
+
+    <h3 class="subsec-h" style="margin-top:28px; font-size:17px">Reported across the full evaluation</h3>
+    <p class="sec-body" style="margin-bottom:8px">Averaged over 250 independent channel realizations, as reported in the paper's evaluation (Figs. 1&ndash;5):</p>
+    <div class="stat-row">
+      <div class="stat-chip"><div class="num">+8%</div><div class="lbl">SAC vs. alternating optimization (AO)</div></div>
+      <div class="stat-chip"><div class="num">+4.53%</div><div class="lbl">SAC vs. DDPG, same formulation</div></div>
+      <div class="stat-chip"><div class="num">+15.5%</div><div class="lbl">proposed MDP vs. alternate formulation (AF)</div></div>
+      <div class="stat-chip"><div class="num">+9.7%</div><div class="lbl">SAC(PF) vs. DDPG(PF), fixed channel</div></div>
+      <div class="stat-chip"><div class="num">+15.9%</div><div class="lbl">SAC(PF) vs. SAC(AF), fixed channel</div></div>
+    </div>
+  </section>
+
+  <!-- ============== CLOSING ============== -->
+  <section class="closing">
+    <span class="pill">Patel &amp; Jindal &middot; DAIICT</span>
+    <p>A Markov decision process formulated to keep the state truly self-contained, a Soft Actor-Critic agent trained with twin critics and an entropy-regularized policy, and an episodic strategy that always restarts from the same state rather than a random one &mdash; together these improve the achievable rate by 8% over classical alternating optimization and 4.53% over DDPG, averaged across 250 independent channel realizations, while generalizing across diverse channel conditions.</p>
+  </section>
+
+  <footer>&copy; 2026 Ayush Brijesh Patel &middot; Rate Optimization in Distributed RIS-Aided MIMO via SAC</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+(function(){
+  try{
+    if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      document.body.classList.add('reduced-motion');
+    }
+  }catch(e){}
+
+  /* ================= Section 2: real distributed-RIS 3D system ================= */
+  function buildSystem3D(){
+    if(typeof THREE === 'undefined') return null;
+    var stage = document.getElementById('sys3d-stage');
+    if(!stage) return null;
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(32, 1, 0.1, 300);
+    var renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+    stage.appendChild(renderer.domElement);
+
+    // soft gradient lighting — a dim hemisphere fill plus one directional
+    // key light, so the solid hardware (masts, frame rods) picks up a
+    // gentle light/shadow gradient instead of flat, unlit color
+    scene.add(new THREE.HemisphereLight(0xcfd6ff, 0x1a1c2b, 0.85));
+    var keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    keyLight.position.set(-6, 10, -8);
+    scene.add(keyLight);
+
+    // real relative geometry — compressed for legibility, order and
+    // relative placement preserved: Tx far left, 3 RISs clustered near Rx,
+    // Rx at ground level on the right. Real metres: Tx(0,0,10),
+    // RIS x=600/630/660 (y=2,z=10), Rx(620,0,0).
+    var txPos = new THREE.Vector3(-9.6, 2.7, 0);
+    var rxPos = new THREE.Vector3(12, 0, 0);
+    var risPos = [
+      new THREE.Vector3(5.64, 2.7, 1.44),
+      new THREE.Vector3(7.56, 2.7, 1.44),
+      new THREE.Vector3(9.48, 2.7, 1.44)
+    ];
+    var center = new THREE.Vector3(1.2, 1.35, 0.72);
+
+    var pivot = new THREE.Group();
+    var group = new THREE.Group();
+    group.position.copy(center).multiplyScalar(-1);
+    pivot.add(group);
+    scene.add(pivot);
+
+    var groundMat = new THREE.LineBasicMaterial({color:0x8890a8, transparent:true, opacity:0.2});
+    var groundPts = [new THREE.Vector3(-12,0,0), new THREE.Vector3(14,0,0)];
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(groundPts), groundMat));
+
+    function glowSphere(pos, color, r, opacity){
+      var g = new THREE.Mesh(new THREE.SphereGeometry(r,16,16), new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:opacity}));
+      g.position.copy(pos);
+      group.add(g);
+      return g;
+    }
+
+    function antennaArray(pos, color){
+      var g = new THREE.Group();
+      g.position.copy(pos);
+      var mat = new THREE.MeshStandardMaterial({color:color, roughness:0.45, metalness:0.25});
+      var plate = new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,0.1,20), new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.1}));
+      plate.rotation.x = Math.PI/2;
+      g.add(plate);
+      for(var i=0;i<4;i++){
+        var ax = (i%2===0? -0.42: 0.42), az = (i<2? -0.42: 0.42);
+        var base = new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.09,0.08,12), mat);
+        base.position.set(ax,0.05,az);
+        g.add(base);
+        var mast = new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.045,0.55,8), mat);
+        mast.position.set(ax,0.33,az);
+        g.add(mast);
+        var tip = new THREE.Mesh(new THREE.SphereGeometry(0.11,12,12), mat);
+        tip.position.set(ax,0.62,az);
+        g.add(tip);
+      }
+      group.add(g);
+      var glow = glowSphere(pos.clone().add(new THREE.Vector3(0,0.32,0)), color, 1.1, 0.14);
+      return { group:g, glow:glow };
+    }
+    var txAnt = antennaArray(txPos, 0x9a9dff);
+    var rxAnt = antennaArray(rxPos, 0x6fd3a6);
+
+    var risDim = 5; // 10 elements ~ 5x2 grid
+    risPos.forEach(function(p){
+      var g = new THREE.Group();
+      g.position.copy(p);
+      var panelW = 2.3, panelH = 1.0;
+
+      var glowPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(panelW*1.35, panelH*1.7),
+        new THREE.MeshBasicMaterial({color:0xf0b865, transparent:true, opacity:0.045, side:THREE.DoubleSide})
+      );
+      g.add(glowPlane);
+
+      var panel = new THREE.Mesh(
+        new THREE.PlaneGeometry(panelW, panelH),
+        new THREE.MeshBasicMaterial({color:0xf0b865, transparent:true, opacity:0.13, side:THREE.DoubleSide})
+      );
+      g.add(panel);
+      for(var m=0;m<10;m++){
+        var col = m % risDim, row = Math.floor(m/risDim);
+        var ex = (col - (risDim-1)/2) * (panelW/risDim) * 0.82;
+        var ey = (row - 0.5) * (panelH/2) * 0.82;
+        var el = new THREE.Mesh(new THREE.SphereGeometry(0.05,8,8), new THREE.MeshBasicMaterial({color:0xf0b865}));
+        el.position.set(ex, ey, 0.03);
+        g.add(el);
+      }
+      var frameMat = new THREE.LineBasicMaterial({color:0xc98f3a, transparent:true, opacity:0.55});
+      var fw=panelW/2, fh=panelH/2;
+      var framePts = [
+        new THREE.Vector3(-fw,-fh,0), new THREE.Vector3(fw,-fh,0),
+        new THREE.Vector3(fw,fh,0), new THREE.Vector3(-fw,fh,0),
+        new THREE.Vector3(-fw,-fh,0)
+      ];
+      g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(framePts), frameMat));
+      var rodMat = new THREE.MeshStandardMaterial({color:0xc98f3a, roughness:0.4, metalness:0.3});
+      [[-fw,-fh],[fw,-fh],[fw,fh],[-fw,fh]].forEach(function(c){
+        var rod = new THREE.Mesh(new THREE.SphereGeometry(0.04,8,8), rodMat);
+        rod.position.set(c[0],c[1],0);
+        g.add(rod);
+      });
+      group.add(g);
+    });
+
+    function beam(a, b, color, radius, opacity, dashed){
+      if(dashed){
+        var mat = new THREE.LineDashedMaterial({color:color, transparent:true, opacity:opacity, dashSize:0.4, gapSize:0.3});
+        var line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]), mat);
+        line.computeLineDistances();
+        group.add(line);
+      } else {
+        var dir = new THREE.Vector3().subVectors(b,a);
+        var len = dir.length();
+        var cyl = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius,radius,len,8),
+          new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:opacity})
+        );
+        cyl.position.copy(a).addScaledVector(dir,0.5);
+        cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
+        group.add(cyl);
+      }
+    }
+    risPos.forEach(function(p){
+      beam(txPos, p, 0xf0b865, 0.04, 0.6, false);
+      beam(p, rxPos, 0xf0b865, 0.04, 0.6, false);
+    });
+    beam(txPos, rxPos, 0x8890a8, 0.03, 0.4, true);
+
+    // signal-flow particles — small glowing dots that travel the real
+    // Tx→RIS→Rx reflected paths and the direct Tx→Rx path, continuously
+    // looping, so the scene visibly shows where the channel lives
+    function makeParticle(color){
+      return new THREE.Mesh(new THREE.SphereGeometry(0.085,10,10), new THREE.MeshBasicMaterial({color:color, transparent:true, opacity:0.9}));
+    }
+    var particles = [];
+    risPos.forEach(function(p, i){
+      var legA = makeParticle(0xf0b865); group.add(legA);
+      particles.push({mesh:legA, a:txPos, b:p, speed:0.22, phase:i*0.31});
+      var legB = makeParticle(0xf0b865); group.add(legB);
+      particles.push({mesh:legB, a:p, b:rxPos, speed:0.22, phase:0.5+i*0.31});
+    });
+    var directParticle = makeParticle(0xaab0c8); group.add(directParticle);
+    particles.push({mesh:directParticle, a:txPos, b:rxPos, speed:0.15, phase:0.8});
+
+    var camTarget = new THREE.Vector3(1.2,1.35,0.72);
+    var camPos0 = new THREE.Vector3(2.6, 4.3, -16.5);
+    var camDir0 = camPos0.clone().sub(camTarget);
+    var camDist0 = camDir0.length();
+    var baseAspect = 860/340; // aspect this framing was tuned at
+    camera.position.copy(camPos0);
+    camera.lookAt(camTarget);
+
+    function resize(){
+      var w = stage.clientWidth||400, h = stage.clientHeight||340;
+      if(w<10||h<10) return;
+      renderer.setSize(w,h,false);
+      var aspect = w/h;
+      camera.aspect = aspect;
+      // narrower screens need the camera pulled back so the scene's
+      // horizontal extent (its longer axis) still fits in frame
+      var scale = aspect < baseAspect ? Math.min(baseAspect/aspect, 2.6) : 1;
+      camera.position.copy(camTarget).addScaledVector(camDir0.clone().normalize(), camDist0*scale);
+      camera.lookAt(camTarget);
+      camera.updateProjectionMatrix();
+    }
+    resize();
+
+    // auto-rotates slowly until the first touch, then settles into
+    // ordinary drag-to-rotate with the existing idle sway
+    var dragging=false, lastX=0, lastY=0, dragBaseY=0.18, rotX=0.1, swayPhase=0, autoRotating=true;
+    pivot.rotation.x = rotX;
+    stage.addEventListener('pointerdown', function(e){
+      dragging=true; autoRotating=false; lastX=e.clientX; lastY=e.clientY; stage.classList.add('dragging');
+    });
+    window.addEventListener('pointerup', function(){ dragging=false; stage.classList.remove('dragging'); });
+    window.addEventListener('pointermove', function(e){
+      if(!dragging) return;
+      var dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY;
+      dragBaseY += dx*0.008;
+      rotX = Math.max(-0.5, Math.min(0.6, rotX + dy*0.006));
+      pivot.rotation.y = dragBaseY + Math.sin(swayPhase)*0.08;
+      pivot.rotation.x = rotX;
+    });
+
+    function makeLabel(text, cls){
+      var d = document.createElement('div');
+      d.className = 'env3d-label'+(cls?(' '+cls):'');
+      d.textContent = text;
+      stage.appendChild(d);
+      return d;
+    }
+    var txLabel = makeLabel('Tx', 'env3d-label-strong');
+    var rxLabel = makeLabel('Rx', 'env3d-label-strong');
+    var risLabels = risPos.map(function(_,i){ return makeLabel('RIS '+(i+1)); });
+
+    var tmpV = new THREE.Vector3();
+    function project(localPos){
+      tmpV.copy(localPos);
+      group.localToWorld(tmpV);
+      tmpV.project(camera);
+      var w = stage.clientWidth||400, h = stage.clientHeight||340;
+      return { x:(tmpV.x*0.5+0.5)*w, y:(1-(tmpV.y*0.5+0.5))*h, behind: tmpV.z>1 };
+    }
+    function placeLabel(el, screenPos, dy){
+      el.style.display = screenPos.behind ? 'none' : 'block';
+      el.style.left = screenPos.x.toFixed(1)+'px';
+      el.style.top = (screenPos.y+(dy||0)).toFixed(1)+'px';
+    }
+    function updateLabels(){
+      var placed = [];
+      function placeWithAvoid(el, worldPos, dy){
+        var p = project(worldPos);
+        if(!p.behind){
+          for(var tries=0; tries<6; tries++){
+            var collide = placed.some(function(q){ return Math.abs(p.x-q.x) < 44 && Math.abs(p.y-q.y) < 16; });
+            if(!collide) break;
+            p.y += 13;
+          }
+          placed.push(p);
+        }
+        placeLabel(el, p, dy);
+      }
+      placeWithAvoid(txLabel, txPos, -40);
+      placeWithAvoid(rxLabel, rxPos, -22);
+      risPos.forEach(function(p,i){ placeWithAvoid(risLabels[i], p, -26); });
+    }
+
+    function animate(){
+      if(autoRotating){
+        dragBaseY += 0.0022;
+      }
+      if(!dragging) swayPhase += 0.004;
+      pivot.rotation.y = dragBaseY + Math.sin(swayPhase)*0.08;
+      pivot.rotation.x = rotX;
+      var tt = performance.now()*0.001;
+      txAnt.glow.scale.setScalar(1 + 0.07*Math.sin(tt*1.1));
+      rxAnt.glow.scale.setScalar(1 + 0.07*Math.sin(tt*1.1+1.6));
+      particles.forEach(function(pt){
+        var t = ((tt*pt.speed + pt.phase) % 1 + 1) % 1;
+        pt.mesh.position.lerpVectors(pt.a, pt.b, t);
+        pt.mesh.material.opacity = 0.25 + 0.65*Math.sin(t*Math.PI);
+      });
+      renderer.render(scene, camera);
+      updateLabels();
+      requestAnimationFrame(animate);
+    }
+    animate();
+    window.addEventListener('resize', resize);
+  }
+  try{ buildSystem3D(); }catch(e){ console.warn('3D system view unavailable:', e); }
+
+  /* ================= Section 4: real SAC training run ================= */
+  var NSTEPS = 9000, EPLEN = 300, NEPS = 30;
+  var RATE = null, EP_MAX = null;
+
+  var svgNS = 'http://www.w3.org/2000/svg';
+  function el(tag, attrs){
+    var e = document.createElementNS(svgNS, tag);
+    for(var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  function buildRateChart(){
+    var svg = document.getElementById('chart-rate');
+    var W = 700, H = 160, PADL = 36, PADR = 10, PADT = 12, PADB = 26;
+    var minV = Math.min.apply(null, RATE), maxV = Math.max.apply(null, RATE);
+    var span = maxV - minV;
+    minV -= span*0.08; maxV += span*0.08;
+    function xScale(i){ return PADL + (W-PADL-PADR) * i/(NSTEPS-1); }
+    function yScale(v){ return H-PADB - (v-minV)/(maxV-minV) * (H-PADT-PADB); }
+
+    // episode boundary ticks — the real periodic-reset signature
+    for(var e=0; e<=NEPS; e++){
+      var x = xScale(Math.min(e*EPLEN, NSTEPS-1));
+      svg.appendChild(el('line',{x1:x,y1:PADT,x2:x,y2:H-PADB,stroke:'var(--canvas-grid)','stroke-width':1}));
+    }
+
+    // axis
+    svg.appendChild(el('line',{x1:PADL,y1:H-PADB,x2:W-PADR,y2:H-PADB,stroke:'var(--rule)','stroke-width':1}));
+    [minV+span*0.08, (minV+maxV)/2, maxV-span*0.08].forEach(function(v){
+      var y = yScale(v);
+      var t = el('text',{x:4,y:y+3,class:'cap'});
+      t.textContent = v.toFixed(1);
+      t.style.fontSize='9px';
+      svg.appendChild(t);
+    });
+
+    // real step-level polyline
+    var pts = RATE.map(function(v,i){ return xScale(i)+','+yScale(v); }).join(' ');
+    svg.appendChild(el('polyline',{points:pts, class:'rate-line'}));
+
+    var cursor = el('line',{x1:PADL,y1:PADT,x2:PADL,y2:H-PADB, class:'chart-cursor', id:'rate-cursor'});
+    svg.appendChild(cursor);
+    return { xScale:xScale, yScale:yScale };
+  }
+
+  function buildEpisodeChart(){
+    var svg = document.getElementById('chart-episodes');
+    var W = 700, H = 130, PADL = 36, PADR = 10, PADT = 14, PADB = 26;
+    var minV = Math.min.apply(null, EP_MAX), maxV = Math.max.apply(null, EP_MAX);
+    var span = Math.max(0.05, maxV-minV);
+    minV -= span*0.15; maxV += span*0.15;
+    function xScale(i){ return PADL + (W-PADL-PADR) * i/(NEPS-1); }
+    function yScale(v){ return H-PADB - (v-minV)/(maxV-minV) * (H-PADT-PADB); }
+
+    svg.appendChild(el('line',{x1:PADL,y1:H-PADB,x2:W-PADR,y2:H-PADB,stroke:'var(--rule)','stroke-width':1}));
+    [minV+span*0.15, maxV-span*0.15].forEach(function(v){
+      var y = yScale(v);
+      var t = el('text',{x:4,y:y+3}); t.setAttribute('class','cap'); t.style.fontSize='9px';
+      t.textContent = v.toFixed(2);
+      svg.appendChild(t);
+    });
+    [[0,'start'],[9,'middle'],[19,'middle'],[29,'end']].forEach(function(pair){
+      var i = pair[0];
+      var t = el('text',{x:xScale(i),y:H-8,'text-anchor':pair[1]}); t.setAttribute('class','cap'); t.style.fontSize='9px';
+      t.textContent = 'ep '+(i+1);
+      svg.appendChild(t);
+    });
+
+    var pts = EP_MAX.map(function(v,i){ return xScale(i)+','+yScale(v); }).join(' ');
+    svg.appendChild(el('polyline',{points:pts, class:'ep-line'}));
+    EP_MAX.forEach(function(v,i){
+      svg.appendChild(el('circle',{cx:xScale(i), cy:yScale(v), r:3, class:'ep-dot', id:'epdot-'+i}));
+    });
+  }
+
+  function init(){
+    var rateEl = document.getElementById('rate-val');
+    var epLbl = document.getElementById('ep-lbl');
+    var stepLbl = document.getElementById('demo-step-lbl');
+    var scrubEl = document.getElementById('demo-scrub');
+    var playBtn = document.getElementById('demo-play');
+    var chart = buildRateChart();
+    buildEpisodeChart();
+    var cursor = document.getElementById('rate-cursor');
+
+    var curStep = 0, playing = true, rafRunning = false;
+    var lastFrame = 0;
+
+    function render(){
+      var v = RATE[curStep];
+      var ep = Math.floor(curStep/EPLEN);
+      rateEl.textContent = v.toFixed(3);
+      epLbl.textContent = 'episode ' + (ep+1) + ' / ' + NEPS;
+      stepLbl.textContent = 'step ' + curStep.toLocaleString('en-US') + ' / ' + NSTEPS.toLocaleString('en-US');
+      scrubEl.value = curStep;
+      var x = chart.xScale(curStep);
+      cursor.setAttribute('x1', x); cursor.setAttribute('x2', x);
+      for(var i=0;i<NEPS;i++){
+        var d = document.getElementById('epdot-'+i);
+        if(d) d.setAttribute('r', i===ep ? 5 : 3);
+      }
+    }
+
+    function loop(ts){
+      if(playing){
+        if(!lastFrame) lastFrame = ts;
+        if(ts - lastFrame > 4){ // ~250 steps/sec, full run in ~36s
+          curStep = Math.min(NSTEPS-1, curStep + 6);
+          render();
+          lastFrame = ts;
+          if(curStep >= NSTEPS-1){ playing = false; playBtn.textContent = 'Replay'; }
+        }
+        requestAnimationFrame(loop);
+      } else { rafRunning = false; }
+    }
+    function startLoop(){ if(!rafRunning){ rafRunning = true; lastFrame = 0; requestAnimationFrame(loop); } }
+
+    scrubEl.addEventListener('input', function(){
+      curStep = +scrubEl.value; playing = false; playBtn.textContent = 'Play';
+      render();
+    });
+    playBtn.addEventListener('click', function(){
+      if(playing){ playing = false; playBtn.textContent = 'Play'; }
+      else{ if(curStep >= NSTEPS-1) curStep = 0; playing = true; playBtn.textContent = 'Pause'; startLoop(); }
+    });
+
+    render();
+    startLoop();
+  }
+
+  fetch('rate_compact.json').then(function(r){ return r.json(); }).then(function(data){
+    RATE = data;
+    EP_MAX = [];
+    for(var e=0; e<NEPS; e++){
+      EP_MAX.push(Math.max.apply(null, RATE.slice(e*EPLEN, (e+1)*EPLEN)));
+    }
+    init();
+  }).catch(function(err){ console.warn('rate data unavailable:', err); });
+})();
+</script>
+</body>
+</html>
